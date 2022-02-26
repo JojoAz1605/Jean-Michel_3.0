@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 from functions import*
 
-liste_insultes = ['putain', 'con', 'connard', 'connasse', 'pute', 'tg', 'ta gueule', 'sex', 'sexuelement', 'viol', 'violer', 'winie l\'ourson', 'taiwan', 'negro', 'nez gros', 'nee gros', 'batard', 'couiles', 'casse les couilles']
+liste_insultes = ['putain', 'con', 'connard', 'connasse', 'pute', 'tg', 'ta gueule', 'sex', 'sexuelement', 'viol', 'violer', 'winnie l\'ourson', 'taiwan', 'negro', 'nez gros', 'nee gros', 'batard', 'couiles', 'casse les couilles']
 persos = {
     "yae": datetime(2022, 2, 16, 0, 4, 0),
     "ayato": datetime(2022, 3, 31, 0, 4, 0)
@@ -30,13 +30,16 @@ async def on_ready():
 @jean_michel.event
 async def on_message(msg: discord.Message):
     """Event qui se déclenche lorsqu'un message est envoyé par une personne"""
-    print(f"{msg.author} a dit \"{msg.content}\" dans #{msg.channel} sur {msg.guild.name}")
-    if contain_bad_word(msg.content, liste_insultes) and not msg.author.bot:
-        await msg.delete()
-        await msg.author.send("Tu as dit un mot pas gentil, ton message a été supprimé")
-        print("message pas gentil, message supprimé")
-    else:
-        await jean_michel.process_commands(msg)  # lance une commande si le message en contient une
+    try:
+        print(f"{msg.author} a dit \"{msg.content}\" dans #{msg.channel} sur {msg.guild.name}")
+        if contain_bad_word(msg.content, liste_insultes) and not msg.author.bot:
+            await msg.delete()
+            await msg.author.send("Tu as dit un mot pas gentil, ton message a été supprimé")
+            print("message pas gentil, message supprimé")
+        else:
+            await jean_michel.process_commands(msg)  # lance une commande si le message en contient une
+    except AttributeError:
+        pass
 
 @jean_michel.command(name="tempsPerso")
 async def temps_perso(ctx, perso: str):
