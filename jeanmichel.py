@@ -30,7 +30,7 @@ async def on_ready():
 @jean_michel.event
 async def on_message(msg: discord.Message):
     """Event qui se déclenche lorsqu'un message est envoyé par une personne"""
-    print(f"{msg.author} a dit \"{msg.content}\" dans #{msg.channel} sur {msg.guild.id}")
+    print(f"{msg.author} a dit \"{msg.content}\" dans #{msg.channel} sur {msg.guild.name}")
     if contain_bad_word(msg.content, liste_insultes) and not msg.author.bot:
         await msg.delete()
         await msg.author.send("Tu as dit un mot pas gentil, ton message a été supprimé")
