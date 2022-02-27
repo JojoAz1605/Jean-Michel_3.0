@@ -4,8 +4,8 @@ import discord
 from datetime import datetime
 from datetime import timedelta
 
-from discord.ext import commands
 from dotenv import load_dotenv
+from discord_slash import SlashCommand, SlashContext
 
 from functions import*
 
@@ -15,7 +15,11 @@ persos = {
     "ayato": datetime(2022, 3, 31, 0, 4, 0)
 }
 
-jean_michel = commands.Bot(command_prefix="/", help_command=None)
+# TODO une base de données persistante avec des commandes d'admin pour modifier les valeurs depuis un serveur
+guild_ids = [706647025021747310]
+serveurs_avec_censure = [706647025021747310]
+jean_michel = discord.Client(intents=discord.Intents.all())
+slash = SlashCommand(jean_michel, sync_commands=True)
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -25,23 +29,21 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 async def on_ready():
     """Event qui se déclenche lorsque que le bot est prêt"""
     print(f'{jean_michel.user.name} s\'est connecté à Discord')
-    await jean_michel.change_presence(status=discord.Status.online, activity=discord.Game("être une version 3.0 de moi-même"))  # Défini le jeu du bot
+    await jean_michel.change_presence(status=discord.Status.online, activity=discord.Game("être tout beau parce que je suis parfait"))  # Défini le jeu du bot
 
 @jean_michel.event
 async def on_message(msg: discord.Message):
     """Event qui se déclenche lorsqu'un message est envoyé par une personne"""
     try:
         print(f"{msg.author} a dit \"{msg.content}\" dans #{msg.channel} sur {msg.guild.name}")
-        if contain_bad_word(msg.content, liste_insultes) and not msg.author.bot:
+        if contain_bad_word(msg.content, liste_insultes) and not msg.author.bot and msg.guild.id in serveurs_avec_censure:
+            print(f"message pas gentil: \"{msg.content}\", message supprimé")
             await msg.delete()
             await msg.author.send("Tu as dit un mot pas gentil, ton message a été supprimé")
-            print("message pas gentil, message supprimé")
-        else:
-            await jean_michel.process_commands(msg)  # lance une commande si le message en contient une
     except AttributeError:
         pass
 
-@jean_michel.command(name="tempsPerso")
+@slash.slash(name="tempsPerso", guild_ids=guild_ids, description="Donne le temps restant avant la sortie d'un personnage de Genshin Impact")
 async def temps_perso(ctx, perso: str):
     global persos
     if perso.lower() not in persos:  # si le perso n'est pas dans la liste
@@ -51,8 +53,8 @@ async def temps_perso(ctx, perso: str):
         temps_avant_perso = strfdelta((persos[perso.lower()] - datetime.now()), tformat)  # forme la réponse avec le temps restant
         await ctx.send(f"{temps_avant_perso} avant {perso}")  # l'envoie
 
-@jean_michel.command(name="supp")
-async def supp(ctx, nb_messages: int = None):
+@slash.slash(name="supp", guild_ids=guild_ids, description="Supprime les messages datant de plus de 24h dans le salon actuel")
+async def supp(ctx: SlashContext, nb_messages: int = None):
     """Commande pour supprimer des messages qui date d'une certaine durée"""
     await ctx.message.delete()
     print(f"Suppression des messages dans #{ctx.channel} sur {ctx.guild}")
@@ -70,6 +72,13 @@ async def supp(ctx, nb_messages: int = None):
             print(f"Le msg \"{msg.content}\", qui date du {msg.created_at}, va été supprimé")
     await ctx.channel.delete_messages(a_supp)  # supprime les messages dans la liste
     print("Fin de la suppression \n")
+
+@slash.slash(name="listMembers", description="Donne la liste des membres du serveur", guild_ids=guild_ids)
+async def list_members(ctx: SlashContext):
+    members = []
+    for member in ctx.guild.members:
+        members.append(member.name)
+    await ctx.send(str(members))
 
 
 jean_michel.run(TOKEN)
