@@ -9,3 +9,10 @@ def strfdelta(tdelta, fmt):
     d["hours"], rem = divmod(tdelta.seconds, 3600)
     d["minutes"], d["seconds"] = divmod(rem, 60)
     return fmt.format(**d)
+
+def index_of(thing, list_of_things):
+    for i in range(len(list_of_things)):
+        if list_of_things[i] == thing:
+            return i
+    else:
+        return False

@@ -1,5 +1,6 @@
 import os
 import discord
+import yaml
 
 from datetime import datetime
 from datetime import timedelta
@@ -8,6 +9,7 @@ from dotenv import load_dotenv
 from discord_slash import SlashCommand, SlashContext
 
 from functions import*
+from database import Database
 
 liste_insultes = ['putain', 'con', 'connard', 'connasse', 'pute', 'tg', 'ta gueule', 'sex', 'sexuelement', 'viol', 'violer', 'winnie l\'ourson', 'taiwan', 'negro', 'nez gros', 'nee gros', 'batard', 'couiles', 'casse les couilles']
 persos = {
@@ -15,9 +17,10 @@ persos = {
     "ayato": datetime(2022, 3, 31, 0, 4, 0)
 }
 
-# TODO une base de données persistante avec des commandes d'admin pour modifier les valeurs depuis un serveur
-guild_ids = [706647025021747310, 171030517695643648, 812659437646905374]
-serveurs_avec_censure = [706647025021747310, 812659437646905374]
+db = Database("Jean-Michel.db")
+
+guild_ids = yaml.safe_load(db.get_value("guild_ids"))
+serveurs_avec_censure = yaml.safe_load(db.get_value("censored_guilds"))
 jean_michel = discord.Client(intents=discord.Intents.all())
 slash = SlashCommand(jean_michel, sync_commands=True)
 
@@ -36,7 +39,7 @@ async def on_message(msg: discord.Message):
     """Event qui se déclenche lorsqu'un message est envoyé par une personne"""
     try:
         print(f"{msg.author} a dit \"{msg.content}\" dans #{msg.channel} sur {msg.guild.name}")
-        if contain_bad_word(msg.content, liste_insultes) and not msg.author.bot and msg.guild.id in serveurs_avec_censure:
+        if contain_bad_word(msg.content, liste_insultes) and not msg.author.bot and str(msg.guild.id) in serveurs_avec_censure:
             print(f"message pas gentil: \"{msg.content}\", message supprimé")
             await msg.delete()
             await msg.author.send("Tu as dit un mot pas gentil, ton message a été supprimé")
