@@ -29,7 +29,7 @@ class Database:
             return ""
         else:
             file = open(self.name, 'r')
-            thing_to_return = file.readlines()[index_of(key, file.readlines())]
+            thing_to_return = file.readlines()[index_of(key, self.keys)]
             file.close()
             return thing_to_return[len(key)+1:]
 

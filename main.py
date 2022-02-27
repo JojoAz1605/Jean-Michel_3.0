@@ -1,6 +1,6 @@
 import os
 import discord
-import yaml
+import ast
 
 from datetime import datetime
 from datetime import timedelta
@@ -19,8 +19,8 @@ persos = {
 
 db = Database("Jean-Michel.db")
 
-guild_ids = yaml.safe_load(db.get_value("guild_ids"))
-serveurs_avec_censure = yaml.safe_load(db.get_value("censored_guilds"))
+guild_ids = ast.literal_eval(db.get_value("guild_ids"))
+serveurs_avec_censure = ast.literal_eval(db.get_value("censored_guilds"))
 jean_michel = discord.Client(intents=discord.Intents.all())
 slash = SlashCommand(jean_michel, sync_commands=True)
 
@@ -38,8 +38,8 @@ async def on_ready():
 async def on_message(msg: discord.Message):
     """Event qui se déclenche lorsqu'un message est envoyé par une personne"""
     try:
-        print(f"{msg.author} a dit \"{msg.content}\" dans #{msg.channel} sur {msg.guild.name}")
-        if contain_bad_word(msg.content, liste_insultes) and not msg.author.bot and str(msg.guild.id) in serveurs_avec_censure:
+        print(f"{msg.author} a dit \"{msg.content}\" dans #{msg.channel} sur {msg.guild.name}(id: {msg.guild.id}")
+        if contain_bad_word(msg.content, liste_insultes) and not msg.author.bot and msg.guild.id in serveurs_avec_censure:
             print(f"message pas gentil: \"{msg.content}\", message supprimé")
             await msg.delete()
             await msg.author.send("Tu as dit un mot pas gentil, ton message a été supprimé")
@@ -86,5 +86,33 @@ async def list_members(ctx: SlashContext):
         members.append(member.name)
     await ctx.send(str(members))
 
+@slash.slash(name="serverCensorState", description="Donne l'état actuel de la censure sur le serveur", guild_ids=guild_ids)
+async def server_censor_state(ctx: SlashContext):
+    if ctx.guild.id in serveurs_avec_censure:
+        await ctx.send("La censure est activée sur ce serveur")
+    else:
+        await ctx.send("La censure n'est pas activée sur ce serveur")
+
+@slash.slash(name="toggleCensoring", description="Permet de changer l'état de la censure sur ce serveur", guild_ids=guild_ids)
+async def toggle_censor_state(ctx: SlashContext):
+    if ctx.author.id == ctx.guild.owner.id:
+        if ctx.guild.id in serveurs_avec_censure:
+            serveurs_avec_censure.remove(ctx.guild.id)
+            await ctx.send("La censure est maintenant désactivée")
+        else:
+            serveurs_avec_censure.append(ctx.guild.id)
+            await ctx.send("La censure est maintenant activée")
+        db.set_value("censored_guilds", serveurs_avec_censure)
+    else:
+        await ctx.send("Vous n'avez pas la permission d'utiliser cette commande")
+
+@slash.slash(name="addSlashSupport", description="Ajoute le support des commandes slash sur le serveur")
+async def add_slash_support(ctx: SlashContext):
+    if ctx.guild.id not in guild_ids and ctx.author.id == ctx.guild.owner.id:
+        guild_ids.append(ctx.guild.id)
+        db.set_value("guild_ids", guild_ids)
+        await ctx.send("Ce serveur supporte maintenant mes commandes slash")
+    else:
+        await ctx.send("Ce serveur supporte déjà mes commandes slash")
 
 jean_michel.run(TOKEN)
