@@ -16,8 +16,8 @@ persos = {
 }
 
 # TODO une base de données persistante avec des commandes d'admin pour modifier les valeurs depuis un serveur
-guild_ids = [706647025021747310]
-serveurs_avec_censure = [706647025021747310]
+guild_ids = [706647025021747310, 171030517695643648, 812659437646905374]
+serveurs_avec_censure = [706647025021747310, 812659437646905374]
 jean_michel = discord.Client(intents=discord.Intents.all())
 slash = SlashCommand(jean_michel, sync_commands=True)
 
@@ -56,7 +56,8 @@ async def temps_perso(ctx, perso: str):
 @slash.slash(name="supp", guild_ids=guild_ids, description="Supprime les messages datant de plus de 24h dans le salon actuel")
 async def supp(ctx: SlashContext, nb_messages: int = None):
     """Commande pour supprimer des messages qui date d'une certaine durée"""
-    await ctx.message.delete()
+    message_state = await ctx.send("Je commence la suppression...")
+    compteur = 0
     print(f"Suppression des messages dans #{ctx.channel} sur {ctx.guild}")
     messages = await ctx.channel.history(limit=nb_messages).flatten()  # liste des messages du salon, la limite est de 100
     a_supp = []  # liste des messages à supprimer
@@ -66,11 +67,13 @@ async def supp(ctx: SlashContext, nb_messages: int = None):
         if msg_diff > timedelta(days=13, hours=23):
             print(f"Suppression du msg \"{msg.content}\"")
             await msg.delete()
-            continue
+            compteur += 1
         elif msg_diff > timedelta(days=1):  # si la différence est dans l'intervalle donné
             a_supp.append(msg)  # ajoute le msg à la liste pour être supprimé après
             print(f"Le msg \"{msg.content}\", qui date du {msg.created_at}, va été supprimé")
+    compteur += len(a_supp)
     await ctx.channel.delete_messages(a_supp)  # supprime les messages dans la liste
+    await message_state.edit(content=f"J'ai fini la suppression des messages datant de plus de 24h, j'en ai supprimé {compteur}")
     print("Fin de la suppression \n")
 
 @slash.slash(name="listMembers", description="Donne la liste des membres du serveur", guild_ids=guild_ids)
