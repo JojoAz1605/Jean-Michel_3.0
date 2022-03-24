@@ -7,6 +7,7 @@ from datetime import timedelta
 
 from dotenv import load_dotenv
 from discord_slash import SlashCommand, SlashContext
+from discord.ext import tasks
 
 from functions import*
 from database import Database
@@ -21,6 +22,7 @@ db = Database("Jean-Michel.db")
 
 guild_ids = ast.literal_eval(db.get_value("guild_ids"))
 serveurs_avec_censure = ast.literal_eval(db.get_value("censored_guilds"))
+announce_channels = ast.literal_eval(db.get_value("announce_channels"))
 jean_michel = discord.Client(intents=discord.Intents.all())
 slash = SlashCommand(jean_michel, sync_commands=True)
 
@@ -46,8 +48,22 @@ async def on_message(msg: discord.Message):
     except AttributeError:
         pass
 
+@tasks.loop(minutes=1)
+async def called_once_a_day():
+    global announce_channels
+    for channel in announce_channels:
+        await jean_michel.get_channel(channel).send("oui")
+
+@slash.slash(name="activateThisChan", guild_ids=guild_ids, description="Permet d'activer le salon comme salon d'annonce du bot")
+async def activate_this_chan(ctx: SlashContext):
+    global announce_channels
+    announce_channels.append(ctx.channel_id)
+    db.set_value("announce_channels", announce_channels)
+    print(f"Le salon {ctx.channel.name} d'id {ctx.channel_id} a été défini comme salon d'annonce!")
+
+
 @slash.slash(name="tempsPerso", guild_ids=guild_ids, description="Donne le temps restant avant la sortie d'un personnage de Genshin Impact")
-async def temps_perso(ctx, perso: str):
+async def temps_perso(ctx: SlashContext, perso: str):
     global persos
     if perso.lower() not in persos:  # si le perso n'est pas dans la liste
         await ctx.send(f"Le personnage {perso} n'est pas dans ma base de données.") # dit qu'il n'est pas dans la liste
