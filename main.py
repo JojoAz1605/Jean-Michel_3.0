@@ -12,8 +12,10 @@ from discord.ext import tasks
 from functions import*
 from database import Database
 
+from character_database import aptitudes_time
+
 liste_insultes = ['putain', 'con', 'connard', 'connasse', 'pute', 'tg', 'ta gueule', 'sex', 'sexuelement', 'viol', 'violer', 'winnie l\'ourson', 'taiwan', 'negro', 'nez gros', 'nee gros', 'batard', 'couiles', 'casse les couilles']
-persos = {
+temps_before_persos = {
     "yae": datetime(2022, 2, 16, 0, 4, 0),
     "ayato": datetime(2022, 3, 31, 0, 4, 0)
 }
@@ -48,28 +50,37 @@ async def on_message(msg: discord.Message):
     except AttributeError:
         pass
 
-@tasks.loop(minutes=1)
+@tasks.loop(hours=12)
 async def called_once_a_day():
     global announce_channels
+    print("oui")
     for channel in announce_channels:
-        await jean_michel.get_channel(channel).send("oui")
+        message = "Les personnages dont vous pouvez farmer les aptitudes aujourd'hui sont:\n-" + "\n-".join(aptitudes_time[datetime.today().weekday()])
+        await jean_michel.get_channel(channel).send(message)
+        print(f"oui a été envoyé dans {jean_michel.get_channel(channel).name}")
+
+@called_once_a_day.before_loop
+async def before():
+    await jean_michel.wait_until_ready()
+    print("Finished waiting")
 
 @slash.slash(name="activateThisChan", guild_ids=guild_ids, description="Permet d'activer le salon comme salon d'annonce du bot")
 async def activate_this_chan(ctx: SlashContext):
     global announce_channels
     announce_channels.append(ctx.channel_id)
     db.set_value("announce_channels", announce_channels)
+    await ctx.send("Salon bien défini comme salon d'annonce !")
     print(f"Le salon {ctx.channel.name} d'id {ctx.channel_id} a été défini comme salon d'annonce!")
 
 
 @slash.slash(name="tempsPerso", guild_ids=guild_ids, description="Donne le temps restant avant la sortie d'un personnage de Genshin Impact")
 async def temps_perso(ctx: SlashContext, perso: str):
-    global persos
-    if perso.lower() not in persos:  # si le perso n'est pas dans la liste
+    global temps_before_persos
+    if perso.lower() not in temps_before_persos:  # si le perso n'est pas dans la liste
         await ctx.send(f"Le personnage {perso} n'est pas dans ma base de données.") # dit qu'il n'est pas dans la liste
     else:
         tformat = "{days} jour(s) {hours}h, {minutes} minutes et {seconds} secondes"  # donne le format de la phrase
-        temps_avant_perso = strfdelta((persos[perso.lower()] - datetime.now()), tformat)  # forme la réponse avec le temps restant
+        temps_avant_perso = strfdelta((temps_before_persos[perso.lower()] - datetime.now()), tformat)  # forme la réponse avec le temps restant
         await ctx.send(f"{temps_avant_perso} avant {perso}")  # l'envoie
 
 @slash.slash(name="supp", guild_ids=guild_ids, description="Supprime les messages datant de plus de 24h dans le salon actuel")
@@ -131,4 +142,5 @@ async def add_slash_support(ctx: SlashContext):
     else:
         await ctx.send("Ce serveur supporte déjà mes commandes slash")
 
+called_once_a_day.start()
 jean_michel.run(TOKEN)
