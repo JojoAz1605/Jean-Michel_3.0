@@ -25,6 +25,8 @@ db = Database("Jean-Michel.db")
 guild_ids = ast.literal_eval(db.get_value("guild_ids"))
 serveurs_avec_censure = ast.literal_eval(db.get_value("censored_guilds"))
 announce_channels = ast.literal_eval(db.get_value("announce_channels"))
+aptitudes_time_messages = ast.literal_eval(db.get_value("aptitudes_time_messages"))
+
 jean_michel = discord.Client(intents=discord.Intents.all())
 slash = SlashCommand(jean_michel, sync_commands=True)
 
@@ -52,12 +54,23 @@ async def on_message(msg: discord.Message):
 
 @tasks.loop(hours=12)
 async def called_once_a_day():
-    global announce_channels
-    print("oui")
-    for channel in announce_channels:
-        message = "Les personnages dont vous pouvez farmer les aptitudes aujourd'hui sont:\n-" + "\n-".join(aptitudes_time[datetime.today().weekday()])
-        await jean_michel.get_channel(channel).send(message)
-        print(f"oui a été envoyé dans {jean_michel.get_channel(channel).name}")
+    global announce_channels, aptitudes_time_messages
+    already_done = []
+    text = "Les personnages dont vous pouvez farmer les aptitudes aujourd'hui sont:\n-" + "\n-".join(aptitudes_time[datetime.today().weekday()])
+    for channel_id in announce_channels:
+        le_chan = jean_michel.get_channel(channel_id)
+        for message_id in aptitudes_time_messages:
+            try:
+                le_message = await le_chan.fetch_message(message_id)
+                await le_message.edit(content=text)
+                already_done.append(le_message.channel.id)
+            except discord.errors.NotFound:
+                pass
+        if channel_id not in already_done:
+            message = await le_chan.send(text)
+            aptitudes_time_messages.append(message.id)
+            db.set_value("aptitudes_time_messages", aptitudes_time_messages)
+            print(f"oui a été envoyé dans {le_chan.name}")
 
 @called_once_a_day.before_loop
 async def before():
@@ -67,11 +80,13 @@ async def before():
 @slash.slash(name="activateThisChan", guild_ids=guild_ids, description="Permet d'activer le salon comme salon d'annonce du bot")
 async def activate_this_chan(ctx: SlashContext):
     global announce_channels
-    announce_channels.append(ctx.channel_id)
-    db.set_value("announce_channels", announce_channels)
-    await ctx.send("Salon bien défini comme salon d'annonce !")
-    print(f"Le salon {ctx.channel.name} d'id {ctx.channel_id} a été défini comme salon d'annonce!")
-
+    if ctx.channel_id not in announce_channels:
+        announce_channels.append(ctx.channel_id)
+        db.set_value("announce_channels", announce_channels)
+        await ctx.send("Salon bien défini comme salon d'annonce !")
+        print(f"Le salon {ctx.channel.name} d'id {ctx.channel_id} a été défini comme salon d'annonce dans le serveur")
+    else:
+        await ctx.send("Ce salon a déjà été défini comme salon d'annonce.")
 
 @slash.slash(name="tempsPerso", guild_ids=guild_ids, description="Donne le temps restant avant la sortie d'un personnage de Genshin Impact")
 async def temps_perso(ctx: SlashContext, perso: str):
