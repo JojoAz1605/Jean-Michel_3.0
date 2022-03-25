@@ -4,6 +4,7 @@ import ast
 
 from datetime import datetime
 from datetime import timedelta
+from datetime import time
 
 from dotenv import load_dotenv
 from discord_slash import SlashCommand, SlashContext
@@ -53,24 +54,25 @@ async def on_message(msg: discord.Message):
     except AttributeError:
         pass
 
-@tasks.loop(hours=12)
+@tasks.loop(minutes=30)
 async def check_skill_materials():
-    global announce_channels, aptitudes_time_messages
-    ImageMaker(aptitudes_time[datetime.today().weekday()])  # créé l'image
+    if 4 <= datetime.now().hour < 5:
+        global announce_channels, aptitudes_time_messages
+        ImageMaker(aptitudes_time[datetime.today().weekday()])  # créé l'image
 
-    text = "Les personnages dont vous pouvez farmer les aptitudes aujourd'hui sont:"
-    for channel_id in announce_channels:
-        le_chan = jean_michel.get_channel(channel_id)
-        for message_id in aptitudes_time_messages:
-            try:
-                ancien_message = await le_chan.fetch_message(message_id)
-                await ancien_message.delete()
-                aptitudes_time_messages.remove(ancien_message.id)
-            except discord.errors.NotFound:
-                pass
-        nouveau_message = await le_chan.send(file=discord.File("final.png"), content=text)
-        aptitudes_time_messages.append(nouveau_message.id)
-        db.set_value("aptitudes_time_messages", aptitudes_time_messages)
+        text = "Les personnages dont vous pouvez farmer les aptitudes aujourd'hui sont:"
+        for channel_id in announce_channels:
+            le_chan = jean_michel.get_channel(channel_id)
+            for message_id in aptitudes_time_messages:
+                try:
+                    ancien_message = await le_chan.fetch_message(message_id)
+                    await ancien_message.delete()
+                    aptitudes_time_messages.remove(ancien_message.id)
+                except discord.errors.NotFound:
+                    pass
+            nouveau_message = await le_chan.send(file=discord.File("final.png"), content=text)
+            aptitudes_time_messages.append(nouveau_message.id)
+            db.set_value("aptitudes_time_messages", aptitudes_time_messages)
 
 @check_skill_materials.before_loop
 async def before():
