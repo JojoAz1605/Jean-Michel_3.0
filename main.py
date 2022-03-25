@@ -11,6 +11,7 @@ from discord.ext import tasks
 
 from functions import*
 from database import Database
+from imagemaker import ImageMaker
 
 from character_database import aptitudes_time
 
@@ -53,26 +54,25 @@ async def on_message(msg: discord.Message):
         pass
 
 @tasks.loop(hours=12)
-async def called_once_a_day():
+async def check_skill_materials():
     global announce_channels, aptitudes_time_messages
-    already_done = []
-    text = "Les personnages dont vous pouvez farmer les aptitudes aujourd'hui sont:\n-" + "\n-".join(aptitudes_time[datetime.today().weekday()])
+    ImageMaker(aptitudes_time[datetime.today().weekday()])  # créé l'image
+
+    text = "Les personnages dont vous pouvez farmer les aptitudes aujourd'hui sont:"
     for channel_id in announce_channels:
         le_chan = jean_michel.get_channel(channel_id)
         for message_id in aptitudes_time_messages:
             try:
-                le_message = await le_chan.fetch_message(message_id)
-                await le_message.edit(content=text)
-                already_done.append(le_message.channel.id)
+                ancien_message = await le_chan.fetch_message(message_id)
+                await ancien_message.delete()
+                aptitudes_time_messages.remove(ancien_message.id)
             except discord.errors.NotFound:
                 pass
-        if channel_id not in already_done:
-            message = await le_chan.send(text)
-            aptitudes_time_messages.append(message.id)
-            db.set_value("aptitudes_time_messages", aptitudes_time_messages)
-            print(f"oui a été envoyé dans {le_chan.name}")
+        nouveau_message = await le_chan.send(file=discord.File("final.png"), content=text)
+        aptitudes_time_messages.append(nouveau_message.id)
+        db.set_value("aptitudes_time_messages", aptitudes_time_messages)
 
-@called_once_a_day.before_loop
+@check_skill_materials.before_loop
 async def before():
     await jean_michel.wait_until_ready()
     print("Finished waiting")
@@ -84,7 +84,7 @@ async def activate_this_chan(ctx: SlashContext):
         announce_channels.append(ctx.channel_id)
         db.set_value("announce_channels", announce_channels)
         await ctx.send("Salon bien défini comme salon d'annonce !")
-        print(f"Le salon {ctx.channel.name} d'id {ctx.channel_id} a été défini comme salon d'annonce dans le serveur")
+        print(f"Le salon {ctx.channel.name} d'id {ctx.channel_id} a été défini comme salon d'annonce dans le serveur {ctx.guild.name}")
     else:
         await ctx.send("Ce salon a déjà été défini comme salon d'annonce.")
 
@@ -157,5 +157,5 @@ async def add_slash_support(ctx: SlashContext):
     else:
         await ctx.send("Ce serveur supporte déjà mes commandes slash")
 
-called_once_a_day.start()
+check_skill_materials.start()
 jean_michel.run(TOKEN)
