@@ -14,12 +14,12 @@ from functions import*
 from database import Database
 from imagemaker import ImageMaker
 
-from character_database import aptitudes_time
+from genshin_db import aptitudes_time
 
 liste_insultes = ['putain', 'con', 'connard', 'connasse', 'pute', 'tg', 'ta gueule', 'sex', 'sexuelement', 'viol', 'violer', 'winnie l\'ourson', 'taiwan', 'negro', 'nez gros', 'nee gros', 'batard', 'couiles', 'casse les couilles']
 temps_before_persos = {
-    "yae": datetime(2022, 2, 16, 0, 4, 0),
-    "ayato": datetime(2022, 3, 31, 0, 4, 0)
+    "yae": datetime(2022, 2, 16, 4, 0, 0),
+    "ayato": datetime(2022, 3, 30, 4, 0, 0)
 }
 
 db = Database("Jean-Michel.db")
@@ -74,8 +74,20 @@ async def check_skill_materials():
             aptitudes_time_messages.append(nouveau_message.id)
             db.set_value("aptitudes_time_messages", aptitudes_time_messages)
 
+@tasks.loop(minutes=5)
+async def decompte_2_6():
+    chan = jean_michel.get_channel(958469389441695824)
+    tformat = "{days} jour(s) {hours}h, {minutes} minutes et {seconds} secondes"  # donne le format de la phrase
+    temps_avant_perso = strfdelta((temps_before_persos["ayato"] - datetime.now()), tformat)  # forme la réponse avec le temps restant
+    await chan.send(f"{temps_avant_perso} avant la 2.6")  # l'envoie
+    chan.send()
+
+@decompte_2_6.before_loop
+async def decompte_before():
+    await jean_michel.wait_until_ready()
+
 @check_skill_materials.before_loop
-async def before():
+async def check_skills_before():
     await jean_michel.wait_until_ready()
     print("Finished waiting")
 
@@ -160,4 +172,5 @@ async def add_slash_support(ctx: SlashContext):
         await ctx.send("Ce serveur supporte déjà mes commandes slash")
 
 check_skill_materials.start()
+decompte_2_6.start()
 jean_michel.run(TOKEN)
