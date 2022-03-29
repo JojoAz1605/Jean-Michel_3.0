@@ -77,9 +77,9 @@ async def check_skill_materials():
 @tasks.loop(minutes=5)
 async def decompte_2_6():
     chan = jean_michel.get_channel(958469389441695824)
-    tformat = "{days} jour(s) {hours}h, {minutes} minutes et {seconds} secondes"  # donne le format de la phrase
+    tformat = "{hours}h, {minutes} minutes et {seconds} secondes"  # donne le format de la phrase
     temps_avant_perso = strfdelta((temps_before_persos["ayato"] - datetime.now()), tformat)  # forme la réponse avec le temps restant
-    await chan.send(f"{temps_avant_perso} avant la 2.6")  # l'envoie
+    await chan.send(f"{temps_avant_perso} avant la 2.6!")  # l'envoie
     chan.send()
 
 @decompte_2_6.before_loop
