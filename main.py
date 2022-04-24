@@ -13,8 +13,9 @@ from discord.ext import tasks
 from functions import*
 from database import Database
 from imagemaker import ImageMaker
+from imagemakerweapon import ImageMakerWeapon
 
-from genshin_db import aptitudes_time
+from genshin_db import aptitudes_time, weapons_time
 
 liste_insultes = ['putain', 'con', 'connard', 'connasse', 'pute', 'tg', 'ta gueule', 'sex', 'sexuelement', 'viol', 'violer', 'winnie l\'ourson', 'taiwan', 'negro', 'nez gros', 'nee gros', 'batard', 'couiles', 'casse les couilles']
 temps_before_persos = {
@@ -28,6 +29,8 @@ guild_ids = ast.literal_eval(db.get_value("guild_ids"))
 serveurs_avec_censure = ast.literal_eval(db.get_value("censored_guilds"))
 announce_channels = ast.literal_eval(db.get_value("announce_channels"))
 aptitudes_time_messages = ast.literal_eval(db.get_value("aptitudes_time_messages"))
+weapon_time_messages = ast.literal_eval(db.get_value("weapon_time_messages"))
+
 
 jean_michel = discord.Client(intents=discord.Intents.all())
 slash = SlashCommand(jean_michel, sync_commands=True)
@@ -57,12 +60,15 @@ async def on_message(msg: discord.Message):
 @tasks.loop(minutes=30)
 async def check_skill_materials():
     if 4 <= datetime.now().hour < 5:
-        global announce_channels, aptitudes_time_messages
+        global announce_channels, aptitudes_time_messages, weapon_time_messages
         ImageMaker(aptitudes_time[datetime.today().weekday()])  # créé l'image
+        ImageMakerWeapon(weapons_time[datetime.today().weekday()])  # créé l'image pour les armes
 
-        text = "Les personnages dont vous pouvez farmer les aptitudes aujourd'hui sont:"
+        text1 = "Les personnages dont vous pouvez farmer les aptitudes aujourd'hui sont:"
+        text2 = "Les armes dont vous pouvez farmer les matériaux aujourd'hui sont:"
         for channel_id in announce_channels:
             le_chan = jean_michel.get_channel(channel_id)
+
             for message_id in aptitudes_time_messages:
                 try:
                     ancien_message = await le_chan.fetch_message(message_id)
@@ -70,26 +76,29 @@ async def check_skill_materials():
                     aptitudes_time_messages.remove(ancien_message.id)
                 except discord.errors.NotFound:
                     pass
-            nouveau_message = await le_chan.send(file=discord.File("final.png"), content=text)
+
+            for message_id in weapon_time_messages:
+                try:
+                    ancien_message = await le_chan.fetch_message(message_id)
+                    await ancien_message.delete()
+                    weapon_time_messages.remove(ancien_message.id)
+                except discord.errors.NotFound:
+                    pass
+            nouveau_message = await le_chan.send(file=discord.File("final.png"), content=text1)
+            message_weap = await le_chan.send(file=discord.File("weap.png"), content=text2)
             aptitudes_time_messages.append(nouveau_message.id)
+            weapon_time_messages.append(message_weap.id)
             db.set_value("aptitudes_time_messages", aptitudes_time_messages)
-
-@tasks.loop(minutes=5)
-async def decompte_2_6():
-    chan = jean_michel.get_channel(958469389441695824)
-    tformat = "{hours}h, {minutes} minutes et {seconds} secondes"  # donne le format de la phrase
-    temps_avant_perso = strfdelta((temps_before_persos["ayato"] - datetime.now()), tformat)  # forme la réponse avec le temps restant
-    await chan.send(f"{temps_avant_perso} avant la 2.6!")  # l'envoie
-    chan.send()
-
-@decompte_2_6.before_loop
-async def decompte_before():
-    await jean_michel.wait_until_ready()
+            db.set_value("weapons_time_messages", weapon_time_messages)
 
 @check_skill_materials.before_loop
 async def check_skills_before():
     await jean_michel.wait_until_ready()
     print("Finished waiting")
+
+@slash.slash(name="getRoles", guild_ids=guild_ids)
+async def get_roles(ctx: SlashContext):
+    await ctx.send(f"Il y a {len(ctx.guild.roles)} rôles, les rôles des bots sont inclus!")
 
 @slash.slash(name="activateThisChan", guild_ids=guild_ids, description="Permet d'activer le salon comme salon d'annonce du bot")
 async def activate_this_chan(ctx: SlashContext):
@@ -172,5 +181,4 @@ async def add_slash_support(ctx: SlashContext):
         await ctx.send("Ce serveur supporte déjà mes commandes slash")
 
 check_skill_materials.start()
-decompte_2_6.start()
 jean_michel.run(TOKEN)

@@ -4,12 +4,12 @@ from PIL import Image, ImageDraw
 class ImageMaker:
     def __init__(self, liste_persos: list[str]):
         self.MAX_COLUMNS = 8
+        self.IMAGE_NAME = "final.png"
 
         self.liste_persos = liste_persos
         self.card_img_list = self.__make_card_img_list()
         self.image = Image.new("RGBA", self.__calculate_pic_size(), color=(0, 0, 0, 0))
         self.__create_final_image()
-        self.image.save("final.png", quality=100)
 
     def __make_card_img_list(self) -> list[Image]:
         res = []
@@ -45,3 +45,5 @@ class ImageMaker:
                 pos_x = 0
                 pic_counter = 0
             pic_counter += 1
+
+        self.image.save(self.IMAGE_NAME, quality=100)
